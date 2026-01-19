@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Detection Scanner</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+        
+        .panel {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel h2 {
+            margin-bottom: 15px;
+            color: #00d4ff;
+            font-size: 1.2em;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1200px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Video Frame Selection */
+        .frame-container {
+            position: relative;
+            display: inline-block;
+            cursor: crosshair;
+        }
+        
+        .frame-container img {
+            max-width: 100%;
+            display: block;
+            border-radius: 5px;
+            user-select: none;
+            -webkit-user-drag: none;
+            pointer-events: none;
+        }
+        
+        .roi-overlay {
+            position: absolute;
+            border: 3px solid #00ff00;
+            background: rgba(0, 255, 0, 0.2);
+            pointer-events: none;
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            background: #00a8cc;
+        }
+        
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #ff3344;
+        }
+        
+        .btn-secondary {
+            background: #444;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #555;
+        }
+        
+        /* Settings */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .setting-item input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        
+        /* Progress */
+        .progress-container {
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        
+        /* Results */
+        .results-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            background: #1a1a2e;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .result-item:hover {
+            background: #222;
+            transform: translateX(5px);
+            border-left: 3px solid #00d4ff;
+        }
+        
+        .result-filename {
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .result-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .motion-high {
+            color: #ff4757;
+        }
+        
+        .motion-medium {
+            color: #ffa502;
+        }
+        
+        .motion-low {
+            color: #2ed573;
+        }
+        
+        /* Video selector */
+        select {
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .status-text {
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        
+        .roi-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #00ff00;
+        }
+        
+        .instructions {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Motion Detection Scanner</h1>
+        
+        <div class="grid">
+            <div class="left-column">
+                <div class="panel">
+                    <h2>📹 Select Detection Region</h2>
+                    <p class="instructions">Click and drag on the video frame to select the region where you want to detect motion.</p>
+                    
+                    <div class="controls">
+                        <select id="videoSelect">
+                            <option value="">Loading videos...</option>
+                        </select>
+                        <button class="btn-secondary" onclick="loadFrame()">Load Frame</button>
+                        <button class="btn-secondary" onclick="clearROI()">Clear Selection</button>
+                    </div>
+                    
+                    <div class="frame-container" id="frameContainer">
+                        <img id="frameImage" src="" alt="Select a video to load frame">
+                        <video id="videoPlayer" style="display: none; max-width: 100%; border-radius: 5px;" controls></video>
+                        <div class="roi-overlay" id="roiOverlay" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="roi-info" id="roiInfo" style="display: none;">
+                        Selected region: <span id="roiText"></span>
+                    </div>
+                    
+                    <div class="video-controls" id="videoControls" style="display: none; margin-top: 10px;">
+                        <button class="btn-secondary" onclick="closeVideo()">← Back to Frame Selection</button>
+                        <span id="nowPlaying" style="margin-left: 10px; color: #aaa;"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-column">
+                <div class="panel">
+                    <h2>⚙️ Detection Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>Motion Threshold (1-100)</label>
+                            <input type="number" id="threshold" value="25" min="1" max="100">
+                        </div>
+                        <div class="setting-item">
+                            <label>Min Area (pixels)</label>
+                            <input type="number" id="minArea" value="500" min="100" max="10000">
+                        </div>
+                        <div class="setting-item">
+                            <label>Frame Skip</label>
+                            <input type="number" id="frameSkip" value="5" min="1" max="30">
+                        </div>
+                    </div>
+                    <button class="btn-secondary" onclick="saveSettings()">Save Settings</button>
+                </div>
+                
+                <div class="panel">
+                    <h2>🔍 Scan Videos</h2>
+                    <div class="controls">
+                        <button class="btn-primary" id="scanBtn" onclick="startScan()" disabled>
+                            Start Scan
+                        </button>
+                        <button class="btn-danger" id="cancelBtn" onclick="cancelScan()" style="display: none;">
+                            Cancel
+                        </button>
+                    </div>
+                    
+                    <div class="progress-container" id="progressContainer" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0 / 0</div>
+                    </div>
+                    
+                    <div class="status-text" id="statusText">
+                        Select a region on the video frame to begin
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2>📊 Results (<span id="resultCount">0</span> videos with motion)</h2>
+                    <div class="results-list" id="resultsList">
+                        <div class="status-text">No results yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let roi = null;
+        let frameWidth = 0;
+        let frameHeight = 0;
+        let isDrawing = false;
+        let startX = 0;
+        let startY = 0;
+        let pollInterval = null;
+        
+        // Load video list on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadVideoList();
+            await loadSettings();
+        });
+        
+        async function loadVideoList() {
+            try {
+                const resp = await fetch('/api/videos');
+                const data = await resp.json();
+                
+                const select = document.getElementById('videoSelect');
+                select.innerHTML = '<option value="">Select a video...</option>';
+                
+                data.videos.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.name;
+                    opt.textContent = v.name;
+                    select.appendChild(opt);
+                });
+                
+                // Auto-select first video
+                if (data.videos.length > 0) {
+                    select.value = data.videos[0].name;
+                    loadFrame();
+                }
+            } catch (e) {
+                console.error('Failed to load videos:', e);
+            }
+        }
+        
+        async function loadFrame() {
+            const filename = document.getElementById('videoSelect').value;
+            if (!filename) return;
+            
+            try {
+                const resp = await fetch(`/api/frame/${encodeURIComponent(filename)}`);
+                const data = await resp.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                const img = document.getElementById('frameImage');
+                img.src = data.image;
+                frameWidth = data.width;
+                frameHeight = data.height;
+                
+                clearROI();
+                setupDrawing();
+            } catch (e) {
+                console.error('Failed to load frame:', e);
+            }
+        }
+        
+        function setupDrawing() {
+            const container = document.getElementById('frameContainer');
+            const img = document.getElementById('frameImage');
+            const overlay = document.getElementById('roiOverlay');
+            
+            // Prevent default drag behavior
+            container.ondragstart = (e) => e.preventDefault();
+            
+            container.onmousedown = (e) => {
+                e.preventDefault();
+                
+                isDrawing = true;
+                const rect = img.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+                
+                overlay.style.left = startX + 'px';
+                overlay.style.top = startY + 'px';
+                overlay.style.width = '0px';
+                overlay.style.height = '0px';
+                overlay.style.display = 'block';
+            };
+            
+            container.onmousemove = (e) => {
+                if (!isDrawing) return;
+                
+                const rect = document.getElementById('frameImage').getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                const x = Math.min(startX, currentX);
+                const y = Math.min(startY, currentY);
+                const w = Math.abs(currentX - startX);
+                const h = Math.abs(currentY - startY);
+                
+                overlay.style.left = x + 'px';
+                overlay.style.top = y + 'px';
+                overlay.style.width = w + 'px';
+                overlay.style.height = h + 'px';
+            };
+            
+            container.onmouseup = (e) => {
+                if (!isDrawing) return;
+                isDrawing = false;
+                
+                const rect = document.getElementById('frameImage').getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                const x = Math.min(startX, currentX);
+                const y = Math.min(startY, currentY);
+                const w = Math.abs(currentX - startX);
+                const h = Math.abs(currentY - startY);
+                
+                if (w > 10 && h > 10) {
+                    roi = {
+                        x: Math.round(x),
+                        y: Math.round(y),
+                        width: Math.round(w),
+                        height: Math.round(h),
+                        frame_width: rect.width,
+                        frame_height: rect.height
+                    };
+                    
+                    document.getElementById('roiInfo').style.display = 'block';
+                    document.getElementById('roiText').textContent = 
+                        `${roi.x}, ${roi.y} → ${roi.width}x${roi.height}`;
+                    document.getElementById('scanBtn').disabled = false;
+                    document.getElementById('statusText').textContent = 
+                        'Region selected. Click "Start Scan" to analyze videos.';
+                } else {
+                    clearROI();
+                }
+            };
+            
+            container.onmouseleave = () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                }
+            };
+        }
+        
+        function clearROI() {
+            roi = null;
+            document.getElementById('roiOverlay').style.display = 'none';
+            document.getElementById('roiInfo').style.display = 'none';
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('statusText').textContent = 
+                'Select a region on the video frame to begin';
+        }
+        
+        async function loadSettings() {
+            try {
+                const resp = await fetch('/api/settings');
+                const data = await resp.json();
+                document.getElementById('threshold').value = data.threshold;
+                document.getElementById('minArea').value = data.min_area;
+                document.getElementById('frameSkip').value = data.frame_skip;
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+        
+        async function saveSettings() {
+            try {
+                await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        threshold: parseInt(document.getElementById('threshold').value),
+                        min_area: parseInt(document.getElementById('minArea').value),
+                        frame_skip: parseInt(document.getElementById('frameSkip').value)
+                    })
+                });
+                alert('Settings saved!');
+            } catch (e) {
+                console.error('Failed to save settings:', e);
+            }
+        }
+        
+        async function startScan() {
+            if (!roi) {
+                alert('Please select a region first');
+                return;
+            }
+            
+            try {
+                const resp = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ roi })
+                });
+                const data = await resp.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                document.getElementById('scanBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+                document.getElementById('progressContainer').style.display = 'block';
+                document.getElementById('resultsList').innerHTML = '<div class="status-text">Scanning...</div>';
+                
+                // Start polling for status
+                pollInterval = setInterval(pollStatus, 500);
+                
+            } catch (e) {
+                console.error('Failed to start scan:', e);
+            }
+        }
+        
+        async function pollStatus() {
+            try {
+                const resp = await fetch('/api/scan/status');
+                const data = await resp.json();
+                
+                const progress = data.total > 0 ? (data.progress / data.total * 100) : 0;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = 
+                    `${data.progress} / ${data.total} - ${data.current_file}`;
+                document.getElementById('statusText').textContent = 
+                    data.running ? `Scanning: ${data.current_file}` : 'Scan complete!';
+                
+                if (!data.running) {
+                    clearInterval(pollInterval);
+                    document.getElementById('scanBtn').style.display = 'inline-block';
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    displayResults(data.results);
+                }
+            } catch (e) {
+                console.error('Failed to poll status:', e);
+            }
+        }
+        
+        async function cancelScan() {
+            try {
+                await fetch('/api/scan/cancel', { method: 'POST' });
+                clearInterval(pollInterval);
+                document.getElementById('scanBtn').style.display = 'inline-block';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('statusText').textContent = 'Scan cancelled';
+            } catch (e) {
+                console.error('Failed to cancel:', e);
+            }
+        }
+        
+        function displayResults(results) {
+            document.getElementById('resultCount').textContent = results.length;
+            
+            const container = document.getElementById('resultsList');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="status-text">No motion detected in the selected region</div>';
+                return;
+            }
+            
+            container.innerHTML = results.map(r => {
+                let motionClass = 'motion-low';
+                if (r.motion_percent > 50) motionClass = 'motion-high';
+                else if (r.motion_percent > 20) motionClass = 'motion-medium';
+                
+                return `
+                    <div class="result-item" onclick="playVideo('${r.filename}')" title="Click to play">
+                        <div class="result-filename">▶ ${r.filename}</div>
+                        <div class="result-stats">
+                            <span class="${motionClass}">${r.motion_percent}% motion</span>
+                            <span>${r.motion_frames} frames</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function playVideo(filename) {
+            const img = document.getElementById('frameImage');
+            const video = document.getElementById('videoPlayer');
+            const overlay = document.getElementById('roiOverlay');
+            const roiInfo = document.getElementById('roiInfo');
+            const videoControls = document.getElementById('videoControls');
+            
+            // Hide image and ROI, show video
+            img.style.display = 'none';
+            overlay.style.display = 'none';
+            roiInfo.style.display = 'none';
+            
+            video.src = `/video/${encodeURIComponent(filename)}`;
+            video.style.display = 'block';
+            videoControls.style.display = 'block';
+            document.getElementById('nowPlaying').textContent = `Playing: ${filename}`;
+            
+            video.play();
+        }
+        
+        function closeVideo() {
+            const img = document.getElementById('frameImage');
+            const video = document.getElementById('videoPlayer');
+            const videoControls = document.getElementById('videoControls');
+            
+            // Stop and hide video
+            video.pause();
+            video.src = '';
+            video.style.display = 'none';
+            videoControls.style.display = 'none';
+            
+            // Show image
+            img.style.display = 'block';
+            
+            // Restore ROI if it was set
+            if (roi) {
+                document.getElementById('roiOverlay').style.display = 'block';
+                document.getElementById('roiInfo').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

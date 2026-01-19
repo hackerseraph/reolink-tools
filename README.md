@@ -18,6 +18,8 @@ Download a full day's worth of video recordings from your Reolink NVR/camera. Th
 ### 2. Motion Detection Scanner (`motion_detection/app.py`)
 A Flask-based web app to scan downloaded videos for motion in a specific region of interest.
 
+![Motion Detection Scanner](docs/motion-detection-screenshot.png)
+
 **Features:**
 - Web-based ROI (Region of Interest) selection
 - Scans all videos in the downloads folder
